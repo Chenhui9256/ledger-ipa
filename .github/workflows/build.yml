@@ -13,11 +13,11 @@ jobs:
         run: |
           mkdir -p $(dirname project.yml)
           base64 -d > project.yml <<'B64END'
-          bmFtZTogTGVkZ2VyQXBwCm9wdGlvbnM6CiAgYnVuZGxlSWRQcmVmaXg6IGNvbS5leGFtcGxlCiAgZGVwbG95bWVudFRhcmdldDoKICAgIGlPUzogIjE1LjAiCiAgY3JlYXRlSW50ZXJtZWRpYXRlR3JvdXBzOiB0cnVlCnRhcmdldHM6CiAgTGVkZ2VyQXBwOgogICAg
-          dHlwZTogYXBwbGljYXRpb24KICAgIHBsYXRmb3JtOiBpT1MKICAgIHNvdXJjZXM6CiAgICAgIC0gcGF0aDogU291cmNlcwogICAgICAtIHBhdGg6IHdlYgogICAgaW5mbzoKICAgICAgcGF0aDogSW5mby5wbGlzdAogICAgc2V0dGluZ3M6CiAgICAgIGJhc2U6CiAg
-          ICAgICAgUFJPRFVDVF9CVU5ETEVfSURFTlRJRklFUjogY29tLmV4YW1wbGUubGVkZ2VyCiAgICAgICAgUFJPRFVDVF9OQU1FOiBMZWRnZXJBcHAKICAgICAgICBJTkZPUExJU1RfRklMRTogSW5mby5wbGlzdAogICAgICAgIEdFTkVSQVRFX0lORk9QTElTVF9GSUxF
-          OiBmYWxzZQogICAgICAgIFNXSUZUX1ZFUlNJT046ICI1LjAiCiAgICAgICAgVEFSR0VURURfREVWSUNFX0ZBTUlMWTogIjEsMiIKICAgICAgICBNQVJLRVRJTkdfVkVSU0lPTjogIjEuMCIKICAgICAgICBDVVJSRU5UX1BST0pFQ1RfVkVSU0lPTjogIjEiCiAgICAg
-          ICAgREVWRUxPUE1FTlRfVEVBTTogIiIK
+          bmFtZTogTGVkZ2VyQXBwCm9wdGlvbnM6CiAgYnVuZGxlSWRQcmVmaXg6IGNvbS5sZWRnZXJhcHAKICBkZXBsb3ltZW50VGFyZ2V0OgogICAgaU9TOiAiMTUuMCIKICBjcmVhdGVJbnRlcm1lZGlhdGVHcm91cHM6IHRydWUKdGFyZ2V0czoKICBMZWRnZXJBcHA6CiAg
+          ICB0eXBlOiBhcHBsaWNhdGlvbgogICAgcGxhdGZvcm06IGlPUwogICAgc291cmNlczoKICAgICAgLSBwYXRoOiBTb3VyY2VzCiAgICAgIC0gcGF0aDogd2ViCiAgICBpbmZvOgogICAgICBwYXRoOiBJbmZvLnBsaXN0CiAgICBzZXR0aW5nczoKICAgICAgYmFzZToK
+          ICAgICAgICBQUk9EVUNUX0JVTkRMRV9JREVOVElGSUVSOiBjb20ubGVkZ2VyYXBwLnRyb2xsCiAgICAgICAgUFJPRFVDVF9OQU1FOiBMZWRnZXJBcHAKICAgICAgICBJTkZPUExJU1RfRklMRTogSW5mby5wbGlzdAogICAgICAgIEdFTkVSQVRFX0lORk9QTElTVF9G
+          SUxFOiBmYWxzZQogICAgICAgIFNXSUZUX1ZFUlNJT046ICI1LjAiCiAgICAgICAgVEFSR0VURURfREVWSUNFX0ZBTUlMWTogIjEsMiIKICAgICAgICBNQVJLRVRJTkdfVkVSU0lPTjogIjEuMCIKICAgICAgICBDVVJSRU5UX1BST0pFQ1RfVkVSU0lPTjogIjEiCiAg
+          ICAgICAgREVWRUxPUE1FTlRfVEVBTTogIiIK
           B64END
           echo "written project.yml: $(wc -c < project.yml) bytes"
           mkdir -p $(dirname Info.plist)
@@ -369,6 +369,13 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             ONLY_ACTIVE_ARCH=NO
+      - name: Ad-hoc self-sign (so TrollStore can open it)
+        run: |
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -name "LedgerApp.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then echo "APP NOT FOUND"; exit 1; fi
+          codesign --force --deep --sign - "$APP"
+          echo "签名完成:"
+          codesign -dvv "$APP" 2>&1 | head -5
       - name: Package IPA
         run: |
           APP=$(find ~/Library/Developer/Xcode/DerivedData -name "LedgerApp.app" -type d 2>/dev/null | head -1)
