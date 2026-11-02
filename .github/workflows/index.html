@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="账本">
+<meta name="theme-color" content="#f3f4f6">
+<title>账本</title>
+<style>
+:root{
+  --bg:#f4f5f7;
+  --card:#ffffff;
+  --ink:#1a1d24;
+  --sub:#8b909a;
+  --faint:#aeb3bd;
+  --line:#eef0f4;
+  --soft:#f6f7f9;
+  --brand:#3b6ef6;
+  --brand2:#5b8bff;
+  --brand-l:#eef3ff;
+  --amount:#f5405b;
+  --warn:#cf8a12;
+  --warn-bg:#fff6e6;
+  --ok:#16a34a;
+  --ok-l:#e9f8ee;
+  --date:#5a606b;
+  --sh:0 1px 2px rgba(17,20,30,.04),0 6px 18px rgba(17,20,30,.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+.app{max-width:500px;margin:0 auto;min-height:100vh;padding-bottom:calc(108px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,#fbfbfd 0%,var(--bg) 240px)}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+input{font-family:inherit}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* header */
+.hd{position:sticky;top:0;z-index:20;background:rgba(244,245,247,.82);backdrop-filter:saturate(180%) blur(12px);
+  padding:calc(14px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid rgba(238,240,244,.7)}
+.hd-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hd-bar .title{font-size:21px;font-weight:800;letter-spacing:3px}
+.title .sub{display:block;font-size:11px;font-weight:500;letter-spacing:1.5px;color:var(--faint);margin-top:3px}
+.icon-btn{width:36px;height:36px;border-radius:12px;background:var(--card);box-shadow:var(--sh);
+  display:flex;align-items:center;justify-content:center;color:var(--sub);border:1px solid rgba(0,0,0,.03);transition:.16s}
+.icon-btn:active{background:var(--soft);transform:scale(.95)}
+.chips{display:flex;justify-content:flex-end}
+.chips button{flex:none;width:50%;padding:9px 0;font-size:13px;font-weight:600;border-radius:12px;background:var(--card);
+  color:var(--sub);box-shadow:var(--sh);transition:.18s}
+.chips button.on{background:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(59,110,246,.3)}
+.rp[hidden]{display:none}
+.rp{display:flex;align-items:center;gap:8px;margin-top:10px;background:var(--card);border-radius:14px;
+  padding:9px 11px;box-shadow:var(--sh);flex-wrap:wrap}
+.rp input{flex:1;min-width:120px;border:0;outline:0;font-size:14px;background:var(--soft);border-radius:9px;padding:8px 10px;color:var(--ink)}
+.rp span{font-size:12px;color:var(--sub)}
+.rp button{font-size:13px;font-weight:600;padding:8px 15px;border-radius:10px;background:var(--soft);color:var(--sub);transition:.16s}
+.rp button:active{transform:scale(.96)}
+.rp button.reset{background:var(--soft);color:var(--sub)}
+.rp button.settle{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+  box-shadow:0 4px 12px rgba(59,110,246,.3)}
+
+/* summary */
+.sum{margin:14px 16px 12px;background:var(--card);border-radius:20px;padding:18px 20px 16px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.sum::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--brand),var(--brand2))}
+.sum-t[hidden]{display:none}
+.sum-t{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.back-pill{font-size:12px;color:var(--brand);background:var(--brand-l);padding:5px 12px;border-radius:20px;font-weight:600}
+.sum-main{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.sum-cell{min-width:0}
+.sum-cell .k{display:block;font-size:11px;color:var(--faint);margin-bottom:3px;letter-spacing:.5px}
+.sum-cell .v{display:block;font-size:30px;font-weight:800;line-height:1.1;letter-spacing:-.6px}
+.sum-cell .v em{font-style:normal;font-size:12px;color:var(--sub);margin-left:3px;font-weight:600}
+.sum-cell .v.amt{color:var(--amount);font-size:28px}
+.sum-sub{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);display:flex;gap:16px;
+  font-size:12px;color:var(--sub)}
+.sum-sub b{color:var(--ink);font-weight:700}
+.settle-info{display:flex;gap:10px;justify-content:center;margin-top:11px}
+.settle-info span{padding:6px 13px;border-radius:20px;font-size:12px;font-weight:700}
+.settle-info .ok{color:var(--ok);background:var(--ok-l)}
+.settle-info .un{color:var(--warn);background:var(--warn-bg)}
+.settle-info[hidden]{display:none}
+.sum-warn[hidden]{display:none}
+.sum-warn{margin-top:12px;font-size:12px;color:var(--warn);background:var(--warn-bg);
+  border-radius:12px;padding:10px 12px;line-height:1.6}
+
+/* list */
+.thead{display:grid;grid-template-columns:1fr 46px 58px 82px;gap:6px;padding:8px 18px 8px;
+  font-size:11px;color:var(--faint);letter-spacing:.5px}
+.thead span:nth-child(n+2){text-align:right}
+.list{margin:0 16px 4px}
+.grp+.grp{margin-top:10px}
+.grp{background:var(--card);border-radius:18px;box-shadow:var(--sh);overflow:hidden}
+.grp-hd{display:flex;align-items:center;gap:10px;padding:13px 13px}
+.grp-hd .stripe{width:4px;height:40px;border-radius:3px;flex:none}
+.g-left{flex:1;min-width:0}
+.g-line1{display:flex;align-items:baseline;gap:7px;min-width:0}
+.g-line1 .ct{font-style:normal;display:inline-block;font-size:8px;color:var(--faint);transition:transform .18s;flex:none}
+.grp.collapsed .ct{transform:rotate(-90deg)}
+.grp.collapsed .grp-bd{display:none}
+.g-date{font-size:16px;font-weight:700;color:var(--date);letter-spacing:.6px;line-height:1.25}
+.g-no{display:flex;align-items:baseline;gap:8px;margin-top:3px;min-width:0}
+.g-left .gno{font-weight:800;font-size:15px;letter-spacing:.4px;white-space:nowrap}
+.g-line2{display:flex;gap:9px;font-size:11px;color:var(--sub);white-space:nowrap;flex:none}
+.g-line2 i{font-style:normal}
+.g-line2 .pend{color:var(--warn);font-weight:600}
+.plus{flex:none;width:30px;height:30px;border-radius:10px;background:var(--brand-l);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;line-height:1;transition:.16s}
+.plus:active{background:#dde8ff;transform:scale(.92)}
+.thumb{flex:none;width:42px;height:42px;border-radius:11px;overflow:hidden;background:var(--soft);
+  display:flex;align-items:center;justify-content:center;border:1px dashed #d9dde4;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb span{font-size:10px;color:var(--faint);text-align:center;line-height:1.2;padding:0 2px}
+.thumb.has{border-color:transparent}
+.gamt{flex:none;font-weight:800;font-size:16px;color:var(--amount);min-width:82px;text-align:right;letter-spacing:-.2px}
+.grp-bd{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr 46px 58px 82px;gap:6px;align-items:center;
+  padding:12px 13px;border-bottom:1px solid #f6f7f9;transition:background .12s}
+.row:last-child{border-bottom:0}
+.row.alt{background:#fafbff}
+.row.alt:active{background:#eef2ff}
+.row:active{background:#fafbfc}
+.row .cs{font-size:14px;color:#353a43;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.45}
+.row .cs em{font-style:normal;font-size:11px;color:var(--faint);margin-left:6px;font-weight:600}
+.row .cs .ok{font-style:normal;font-size:10px;color:var(--ok);margin-left:7px;font-weight:700;
+  background:var(--ok-l);border-radius:6px;padding:1px 6px}
+.row .n{text-align:right;font-size:13px;color:#5c6270}
+.row .amt{font-weight:700;color:var(--amount);font-size:14.5px}
+.row .todo{font-size:12px;color:var(--warn);font-weight:600;text-align:right}
+.empty{padding:56px 20px;text-align:center;color:var(--faint);font-size:13px}
+.empty div{margin-top:8px;font-size:12px;color:#c6cad2}
+
+/* bottom */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:500px;margin:0 auto;
+  display:flex;align-items:center;gap:12px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(14px);border-top:1px solid var(--line);
+  box-shadow:0 -2px 16px rgba(17,20,30,.05)}
+.bar-sum{flex:1;font-size:12px;color:var(--sub);line-height:1.4}
+.bar-sum b{color:var(--ink);font-size:16px;font-weight:700}
+.bar-sum b.r{color:var(--amount)}
+.fab{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;font-weight:600;font-size:15px;
+  padding:13px 22px;border-radius:15px;box-shadow:0 6px 18px rgba(59,110,246,.34);transition:transform .14s,box-shadow .14s;
+  display:flex;align-items:center;gap:6px}
+.fab:active{transform:translateY(1px) scale(.98);box-shadow:0 3px 10px rgba(59,110,246,.3)}
+
+/* sheet */
+.mask{position:fixed;inset:0;background:rgba(16,19,26,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .22s}
+.mask.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:500px;margin:0 auto;background:#fff;
+  border-radius:24px 24px 0 0;transform:translateY(101%);transition:transform .28s cubic-bezier(.32,.72,0,1);
+  max-height:92vh;overflow:auto}
+.sheet.on{transform:translateY(0)}
+.sheet::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:4px;
+  border-radius:3px;background:#e2e5ea;z-index:60}
+.sheet-hd{position:sticky;top:0;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 16px 14px;border-bottom:1px solid var(--line)}
+.sheet-hd span{font-weight:700;font-size:16px}
+.sheet-hd button{font-size:14px;color:var(--sub)}
+.sheet-hd button.ok{color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand2));padding:8px 18px;border-radius:11px;font-weight:600;box-shadow:0 3px 10px rgba(59,110,246,.28)}
+.form,.menu{padding:16px 18px calc(26px + env(safe-area-inset-bottom))}
+.f{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}
+.f>span{width:56px;flex:none;font-size:13px;color:var(--sub)}
+.f input{flex:1;border:0;outline:0;font-size:16px;background:transparent;min-width:0}
+.f input::placeholder{color:#c3c7cf}
+.hint{font-size:11px;color:var(--faint);padding:10px 0 0;line-height:1.6}
+.chips-wrap{display:flex;flex-wrap:wrap;gap:7px;padding:11px 0 5px}
+.chips-wrap button{padding:7px 12px;font-size:12px;border-radius:10px;background:var(--soft);color:#5c6270;transition:.14s}
+.chips-wrap button:active{background:#e9ecf2;transform:scale(.96)}
+.calc{display:flex;align-items:baseline;justify-content:space-between;margin-top:18px;padding:15px 17px;
+  background:linear-gradient(135deg,#f7f9ff,#eef3ff);border-radius:14px}
+.calc span{font-size:13px;color:var(--sub)}
+.calc b{font-size:24px;color:var(--amount);font-weight:800}
+.calc.none b{color:var(--warn);font-size:16px}
+.sw{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:13px;color:var(--sub)}
+.sw input{width:18px;height:18px;accent-color:var(--brand)}
+.menu button{display:block;width:100%;text-align:left;padding:16px 4px;font-size:15px;border-bottom:1px solid var(--line);transition:.14s}
+.menu button.danger{color:var(--amount)}
+.menu button[hidden]{display:none}
+.menu button:active{opacity:.6}
+.tip{margin-top:16px;font-size:12px;color:var(--faint);line-height:1.8}
+.toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;
+  background:rgba(24,26,32,.92);color:#fff;font-size:13px;padding:12px 20px;border-radius:13px;
+  opacity:0;transition:opacity .2s;pointer-events:none;max-width:80%;text-align:center}
+.toast.on{opacity:1}
+.viewer[hidden]{display:none}
+.viewer{position:fixed;inset:0;z-index:90;background:#000;display:flex;flex-direction:column}
+.viewer .vt{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;color:#fff;font-size:14px}
+.viewer .vim{flex:1;display:flex;align-items:center;justify-content:center;padding:0 6px}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="hd">
+    <div class="hd-bar">
+      <div class="title">账本<span class="sub">生意流水账</span></div>
+      <button class="icon-btn" id="btnSet" aria-label="设置">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3.2"/>
+          <path d="M19.1 14.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-2.87 1.2v.17a2.05 2.05 0 1 1-4.1 0v-.09a1.7 1.7 0 0 0-2.87-1.2l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 1.2-2.87H4.7a2.05 2.05 0 1 1 0-4.1h.09A1.7 1.7 0 0 0 6 7.6l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 2.87-1.2V3.3a2.05 2.05 0 1 1 4.1 0v.09a1.7 1.7 0 0 0 1.2 2.87l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0 1.2 2.87h.17a2.05 2.05 0 1 1 0 4.1h-.09a1.7 1.7 0 0 0-1.45 1.2z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="chips" id="chips">
+      <button data-r="custom">选日期</button>
+    </div>
+    <div class="rp" id="rangePanel" hidden>
+      <input type="date" id="rFrom"><span>至</span><input type="date" id="rTo">
+      <button id="rOk">确定</button>
+      <button id="rSettle" class="settle">标记已结算</button>
+      <button id="rAll" class="reset">全部</button>
+    </div>
+  </header>
+
+  <section class="sum">
+    <div class="sum-t" id="sumTop" hidden>
+      <button class="back-pill" id="backBtn">返回全部</button>
+    </div>
+    <div class="sum-main">
+      <div class="sum-cell">
+        <span class="k">总件数</span>
+        <span class="v num"><span id="sumQty">0</span><em>件</em></span>
+      </div>
+      <div class="sum-cell" style="text-align:right">
+        <span class="k">总金额</span>
+        <span class="v amt num">¥<span id="sumAmt">0.00</span></span>
+      </div>
+    </div>
+    <div class="sum-sub">
+      <span>款号 <b id="sumStyles">0</b> 个</span>
+    </div>
+    <div class="settle-info" id="settleBox" hidden></div>
+    <div class="sum-warn" id="sumWarn" hidden></div>
+  </section>
+
+  <div class="thead" id="thead"><span>颜色 / 尺码</span><span>件数</span><span>单价</span><span>金额</span></div>
+  <div class="list" id="list"></div>
+</div>
+
+<footer class="bar">
+  <div class="bar-sum">合计 <b class="num" id="barQty">0</b> 件 · <b class="r num">¥<span id="barAmt">0.00</span></b></div>
+  <button class="fab" id="btnAdd">＋ 记一笔</button>
+</footer>
+
+<div class="mask" id="mask"></div>
+
+<div class="sheet" id="sheetAdd">
+  <div class="sheet-hd">
+    <button id="addClose">取消</button><span id="addTitle">记一笔</span><button class="ok" id="addSave">保存</button>
+  </div>
+  <div class="form">
+    <div class="f"><span>日期</span><input type="date" id="fDate"></div>
+    <div class="f"><span>款号</span><input id="fNo" placeholder="如 A2356" autocomplete="off"></div>
+    <div class="chips-wrap" id="histNo"></div>
+    <div class="f"><span>颜色</span><input id="fColor" placeholder="如 黑" autocomplete="off"></div>
+    <div class="chips-wrap" id="colorChips"></div>
+    <div class="f"><span>尺码</span><input id="fSize" placeholder="如 M" autocomplete="off"></div>
+    <div class="chips-wrap" id="sizeChips"></div>
+    <div class="f"><span>件数</span><input id="fQty" type="number" inputmode="decimal" placeholder="0"></div>
+    <div class="f"><span>单价</span><input id="fPrice" type="number" inputmode="decimal" placeholder="先不填也行"></div>
+    <div class="hint">单价可以先空着，以后回来补，金额会自动算出来。</div>
+    <div class="calc" id="calcBox"><span id="calcText">0 件 × 未填单价 =</span><b id="calcAmt">待补</b></div>
+    <label class="sw"><input type="checkbox" id="fKeep" checked> 保存后继续录同一款</label>
+    <button class="fab" id="btnDel" style="display:none;width:100%;margin-top:14px;background:#fff;color:#e5484d;border:1px solid #ffd9d6;box-shadow:none">删除这条记录</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetAct">
+  <div class="sheet-hd"><button id="actClose">取消</button><span id="actTitle">这条记录</span><span></span></div>
+  <div class="menu">
+    <button id="actAdd">给这个款再补一笔</button>
+    <button id="actEdit">编辑这一条</button>
+    <button id="actDel" class="danger">删除这一条</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetPhoto">
+  <div class="sheet-hd"><button id="phClose">取消</button><span id="phTitle">款号图片</span><span></span></div>
+  <div class="menu">
+    <button id="phTake">拍照</button>
+    <button id="phPick">从相册选</button>
+    <button id="phView">看大图</button>
+    <button id="phDel" class="danger">移除这张图片</button>
+    <div class="tip">这张图跟着款号走，这个款的所有记录共用它。建议拍正面照，方便一眼认出。</div>
+  </div>
+</div>
+
+<div class="sheet" id="sheetSet">
+  <div class="sheet-hd"><button id="setClose">关闭</button><span>设置与备份</span><span></span></div>
+  <div class="menu">
+    <button id="mExport">导出 CSV 表格文件</button>
+    <button id="mCopy">复制表格文本（可粘到微信）</button>
+    <button id="mMemo">一键备份到备忘录</button>
+    <button id="mBackup">导出备份文件（JSON，含图片）</button>
+    <button id="mImport">从备份文件恢复</button>
+    <input type="file" id="fileInput" accept="application/json,.json" hidden>
+    <button id="mDemo">载入 3 条示例数据</button>
+    <button id="mClear" class="danger">清空所有数据</button>
+    <div class="tip">金额只统计已填单价的记录；没填单价的标「待补」，件数照算、金额不计入，补上单价会自动进账。<br><br>图片存在这台手机上，会占地方。建议每周导出一次备份，换手机时导出再导入即可。</div>
+  </div>
+</div>
+
+<div class="viewer" id="viewer" hidden>
+  <div class="vt"><button id="vClose">关闭</button><span id="vNo"></span><span style="width:28px"></span></div>
+  <div class="vim"><img id="vImg" alt=""></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="phCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="phAlb" accept="image/*" hidden>
+
+<script>
+(function(){
+'use strict';
+var KEY='wsa_ledger_v1', PKEY='wsa_ledger_v1_photos';
+var $=function(s){return document.querySelector(s)};
+var PHOTOS=loadPhotos();
+var DB=load();
+
+function load(){
+  try{var o=JSON.parse(localStorage.getItem(KEY));if(o&&Array.isArray(o.records))return o}catch(e){}
+  return{records:[]};
+}
+function loadPhotos(){try{var o=JSON.parse(localStorage.getItem(PKEY));return (o&&typeof o==='object')?o:{}}catch(e){return{}}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast('保存失败：手机存储不够了')}}
+function savePhotos(){
+  try{localStorage.setItem(PKEY,JSON.stringify(PHOTOS))}
+  catch(e){toast('图片没存下：手机存储空间不足');throw e}
+}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function p2(n){return n<10?'0'+n:''+n}
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())}
+function money(f){return (f/100).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function numNice(n){return String(Math.round(n*100)/100)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function toFen(v){var n=parseFloat(v);return isNaN(n)||n<=0?0:Math.round(n*100)}
+function toNum(v){var n=parseFloat(v);return isNaN(n)||n<=0?0:n}
+function hasPrice(r){return !!(r.price&&r.price>0)}
+function amountOf(r){return hasPrice(r)?Math.round(r.qty*r.price):0}
+var toastTimer;
+function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('on')},1700)}
+
+var PALETTE=['#3b6ef6','#ef8f3c','#22a06b','#e2566f','#7c5cf0','#22a3bd','#c9762f','#4c9d4c','#b06ad8','#2f8ee0'];
+function colorOf(no){
+  var h=0;no=String(no||'');for(var i=0;i<no.length;i++)h=(h*31+no.charCodeAt(i))>>>0;
+  return PALETTE[h%PALETTE.length];
+}
+function uniqCount(list,key){
+  var s={},n=0;
+  list.forEach(function(r){var v=String(r[key]==null?'':r[key]).trim();if(v&&!s[v]){s[v]=1;n++}});
+  return n;
+}
+
+var range='all', from='', to='', editId=null, actId=null, photoNo=null, collapsed={};
+
+function sorted(){
+  return DB.records.slice().sort(function(a,b){
+    if(a.date!==b.date)return a.date<b.date?1:-1;
+    return (b.ts||0)-(a.ts||0);
+  });
+}
+function inRange(r){
+  if(range==='pending')return !hasPrice(r);
+  if(range==='custom'){
+    if(from&&r.date<from)return false;
+    if(to&&r.date>to)return false;
+    return true;
+  }
+  return true;
+}
+/* 组内排序：同一个颜色的行挨在一起，同色内按尺码从小到大 */
+var SIZE_ORD={XS:1,S:2,M:3,L:4,XL:5,XXL:6,'2XL':6,XXXL:7,'3XL':7,'4XL':8,'5XL':9};
+function sizeKey(s){
+  s=String(s||'').toUpperCase().trim();
+  if(!s)return[9,0,''];
+  if(SIZE_ORD[s]!=null)return[0,SIZE_ORD[s],''];
+  var n=parseFloat(s), ok=/^\d/;
+  if(!isNaN(n)&&ok.test(s))return[1,n,''];
+  return[2,0,s];
+}
+function cmpSize(a,b){
+  var x=sizeKey(a),y=sizeKey(b);
+  return x[0]-y[0]||x[1]-y[1]||String(x[2]).localeCompare(String(y[2]),'zh');
+}
+function sortByColor(list){
+  return list.slice().sort(function(a,b){
+    var ca=String(a.color||'').trim(),cb=String(b.color||'').trim();
+    if(!ca&&!cb)return cmpSize(a.size,b.size);
+    if(!ca)return 1;          /* 没填颜色的排最后 */
+    if(!cb)return -1;
+    var c=ca.localeCompare(cb,'zh');
+    return c||cmpSize(a.size,b.size);
+  });
+}
+function rows(){return sorted().filter(inRange)}
+function stat(list){
+  var q=0,a=0,p=0;
+  list.forEach(function(r){q+=r.qty;if(hasPrice(r))a+=amountOf(r);else p++});
+  return{count:list.length,qty:Math.round(q*100)/100,amount:a,pending:p};
+}
+function lastRecordOf(no){
+  return sorted().filter(function(r){return String(r.no)===String(no)})[0]||null;
+}
+
+function render(){
+  var list=rows(), s=stat(list);
+  var nos={};list.forEach(function(r){nos[r.no]=1});
+  $('#sumQty').textContent=numNice(s.qty);
+  $('#sumAmt').textContent=money(s.amount);
+  $('#sumStyles').textContent=Object.keys(nos).length;
+  $('#barQty').textContent=numNice(s.qty);
+  $('#barAmt').textContent=money(s.amount);
+  $('#sumTop').hidden=(range!=='pending');
+
+  var sb=$('#settleBox');
+  if(range==='custom'){
+    var se=0,un=0;
+    list.forEach(function(r){if(hasPrice(r)){if(r.settle)se+=amountOf(r);else un+=amountOf(r)}});
+    sb.hidden=false;
+    sb.innerHTML='<span class="ok">已结算 '+money(se)+'</span>'
+      +'<span class="un">未结算 '+money(un)+'</span>';
+  }else sb.hidden=true;
+
+  var w=$('#sumWarn');
+  if(s.pending>0){
+    w.hidden=false;
+    w.innerHTML='有 <b>'+s.pending+'</b> 行还没填单价，件数已计入、金额没计入。点这里只看待补的 →';
+  }else w.hidden=true;
+
+  if(!list.length){
+    $('#list').innerHTML='<div class="empty">这里还没有记录<div>点右下角「＋ 记一笔」开始</div></div>';
+    $('#thead').style.display='none';return;
+  }
+  $('#thead').style.display='';
+
+  var groups=[],map={};
+  list.forEach(function(r){
+    var k=String(r.no||'未填款号');
+    if(!map[k]){map[k]={no:k,rows:[]};groups.push(map[k])}
+    map[k].rows.push(r);
+  });
+  groups.forEach(function(g){
+    g.rows=sortByColor(g.rows);
+    var st=stat(g.rows);
+    g.qty=st.qty;g.amount=st.amount;g.pending=st.pending;
+    g.colors=uniqCount(g.rows,'color');g.sizes=uniqCount(g.rows,'size');
+    g.date=g.rows.reduce(function(m,r){return (!m||r.date>m)?r.date:m},'');
+  });
+  groups.sort(function(a,b){return b.amount-a.amount||b.qty-a.qty});
+
+  var html='';
+  groups.forEach(function(g){
+    var col=colorOf(g.no), pic=PHOTOS[g.no]||'';
+    html+='<div class="grp">'
+      +'<div class="grp-hd">'
+        +'<i class="stripe" style="background:'+col+'"></i>'
+        +'<div class="g-left" data-fold="'+esc(g.no)+'">'
+          +'<div class="g-date">'+esc(g.date.slice(5))+'</div>'
+          +'<div class="g-no">'
+            +'<i class="ct">▼</i>'
+            +'<span class="gno" style="color:'+col+'">'+esc(g.no)+'</span>'
+            +'<span class="g-line2">'
+              +'<i>'+g.colors+' 色</i><i>'+g.sizes+' 码</i><i>'+numNice(g.qty)+' 件</i>'
+              +(g.pending?'<i class="pend">'+g.pending+' 行待补</i>':'')
+            +'</span>'
+          +'</div>'
+        +'</div>'
+        +'<button class="plus" data-add="'+esc(g.no)+'" aria-label="给这个款补一笔">＋</button>'
+        +'<div class="thumb'+(pic?' has':'')+'" data-pic="'+esc(g.no)+'">'
+          +(pic?'<img src="'+pic+'" alt="">':'<span>加图</span>')
+        +'</div>'
+        +'<span class="gamt">'+money(g.amount)+'</span>'
+      +'</div><div class="grp-bd">';
+    var lastC='', ci=-1, first=true;
+    g.rows.forEach(function(r){
+      var c=String(r.color||'').trim();
+      if(first||c!==lastC){lastC=c;ci++;first=false}
+      var cs=[r.color,r.size].filter(Boolean).join(' / ')||'—';
+      var tag=(r.date!==g.date?'<em>'+esc(r.date.slice(5))+'</em>':'')
+        +(r.settle?'<i class="ok">✓已结</i>':'');
+      html+='<div class="row'+(ci%2?' alt':'')+'" data-id="'+r.id+'">'
+        +'<span class="cs">'+esc(cs)+tag+'</span>'
+        +'<span class="n">'+numNice(r.qty)+'</span>'
+        +(hasPrice(r)
+          ? '<span class="n">'+numNice(r.price/100)+'</span><span class="n amt">'+money(amountOf(r))+'</span>'
+          : '<span class="n" style="color:#ccd0d8">—</span><span class="todo">待补</span>')
+        +'</div>';
+    });
+    html+='</div></div>';
+  });
+  $('#list').innerHTML=html;
+}
+
+/* 顶部：选日期（点一下展开，再点一下回到全部） */
+function toAll(){
+  [].forEach.call($('#chips').children,function(x){x.classList.remove('on')});
+  range='all';from='';to='';$('#rangePanel').hidden=true;collapsed={};render();
+}
+$('#chips').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(range==='custom'){toAll();return}
+  b.classList.add('on');range='custom';
+  $('#rangePanel').hidden=false;
+  if(!$('#rFrom').value){$('#rFrom').value=todayStr().slice(0,8)+'01';$('#rTo').value=todayStr()}
+  collapsed={};render();
+});
+$('#rOk').addEventListener('click',function(){from=$('#rFrom').value;to=$('#rTo').value;collapsed={};render()});
+$('#rAll').addEventListener('click',toAll);
+$('#rSettle').addEventListener('click',function(){
+  if(range!=='custom'||!$('#rFrom').value||!$('#rTo').value){
+    toast('请先选好起止日期，再点「标记已结算」');return;
+  }
+  var f=$('#rFrom').value,t=$('#rTo').value,n=0;
+  DB.records.forEach(function(r){
+    if(r.date>=f&&r.date<=t&&!r.settle){r.settle=1;n++}
+  });
+  save();render();
+  toast(n?('已把 '+n+' 笔标记为已结算'):'这段时间本来就已全部结算');
+});
+$('#sumWarn').addEventListener('click',function(){
+  [].forEach.call($('#chips').children,function(x){x.classList.remove('on')});
+  range='pending';$('#rangePanel').hidden=true;collapsed={};render();
+});
+$('#backBtn').addEventListener('click',toAll);
+
+/* 列表交互 */
+$('#list').addEventListener('click',function(e){
+  var add=e.target.closest('.plus');
+  if(add){openSheet(null,add.dataset.add);return}
+  var pic=e.target.closest('.thumb');
+  if(pic){openPhoto(pic.dataset.pic);return}
+  var fold=e.target.closest('.g-left');
+  if(fold){var k=fold.dataset.fold;collapsed[k]=!collapsed[k];render();return}
+  var row=e.target.closest('.row');
+  if(row){
+    var r=DB.records.filter(function(x){return x.id===row.dataset.id})[0];if(!r)return;
+    actId=r.id;
+    $('#actTitle').textContent=esc(r.no)+'　'+(hasPrice(r)?('¥'+money(amountOf(r))):'待补单价');
+    maskOn(true);$('#sheetAct').classList.add('on');
+  }
+});
+
+/* 款号图片 */
+function openPhoto(no){
+  photoNo=no;
+  var has=!!PHOTOS[no];
+  $('#phTitle').textContent='款号 '+no+' 的图片';
+  $('#phView').hidden=!has;$('#phDel').hidden=!has;
+  maskOn(true);$('#sheetPhoto').classList.add('on');
+}
+function closePhoto(){$('#sheetPhoto').classList.remove('on');maskOn(false)}
+$('#phClose').addEventListener('click',closePhoto);
+function pickCam(sel){return function(){$('#sheetPhoto').classList.remove('on');setTimeout(function(){$(sel).click()},160)}}
+$('#phTake').addEventListener('click',pickCam('#phCam'));
+$('#phPick').addEventListener('click',pickCam('#phAlb'));
+$('#phView').addEventListener('click',function(){
+  if(!PHOTOS[photoNo])return;
+  $('#vImg').src=PHOTOS[photoNo];$('#vNo').textContent=photoNo;
+  $('#viewer').hidden=false;$('#sheetPhoto').classList.remove('on');
+});
+$('#vClose').addEventListener('click',function(){$('#viewer').hidden=true;maskOn(false)});
+$('#phDel').addEventListener('click',function(){
+  if(!photoNo||!confirm('移除款号「'+photoNo+'」的图片？'))return;
+  delete PHOTOS[photoNo];savePhotos();render();closePhoto();toast('图片已移除');
+});
+function compress(file,cb){
+  var url=URL.createObjectURL(file),img=new Image();
+  img.onload=function(){
+    var MAX=620,w=img.width,h=img.height,sc=Math.min(1,MAX/Math.max(w,h));
+    var c=document.createElement('canvas');c.width=Math.round(w*sc);c.height=Math.round(h*sc);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(url);cb(c.toDataURL('image/jpeg',0.62));
+  };
+  img.onerror=function(){URL.revokeObjectURL(url);toast('这张图读不出来')};
+  img.src=url;
+}
+function handlePhoto(sel){
+  $(sel).addEventListener('change',function(e){
+    var f=e.target.files&&e.target.files[0];e.target.value='';
+    if(!f)return;
+    compress(f,function(data){
+      if(!data)return;
+      PHOTOS[photoNo]=data;savePhotos();render();toast('图片已存好');
+    });
+  });
+}
+handlePhoto('#phCam');handlePhoto('#phAlb');
+
+/* 录入面板 */
+var COLORS=['黑','白','米','杏','卡其','灰','藏青','粉','红','绿','蓝','咖'];
+var SIZES=['S','M','L','XL','2XL','3XL','4XL','均码'];
+function openSheet(id,preNo){
+  $('#sheetAct').classList.remove('on');
+  maskOn(true);editId=id||null;
+  var r=id?DB.records.filter(function(x){return x.id===id})[0]:null;
+  if(preNo){
+    var last=lastRecordOf(preNo);
+    r={date:last?last.date:todayStr(),no:preNo,color:'',size:'',qty:'',
+       price:last&&hasPrice(last)?last.price:0,settle:r&&r.settle?1:0};
+  }
+  $('#addTitle').textContent=(id?'编辑记录':(preNo?'补录 '+preNo:'记一笔'));
+  $('#btnDel').style.display=id?'block':'none';
+  $('#fDate').value=r?r.date:todayStr();
+  $('#fNo').value=r?r.no:'';
+  $('#fColor').value=r?(r.color||''):'';
+  $('#fSize').value=r?(r.size||''):'';
+  $('#fQty').value=(r&&r.qty)?String(r.qty):'';
+  $('#fPrice').value=(r&&hasPrice(r))?String(r.price/100):'';
+  renderHist();calc();
+  $('#sheetAdd').classList.add('on');
+  if(!id)setTimeout(function(){try{$('#fQty').focus()}catch(e){}},320);
+}
+function closeSheet(){$('#sheetAdd').classList.remove('on');maskOn(false)}
+function renderHist(){
+  var seen={},out=[];
+  sorted().forEach(function(r){if(!r.no||seen[r.no])return;seen[r.no]=1;out.push(r)});
+  out=out.slice(0,10);
+  $('#histNo').innerHTML=out.length
+    ? '<span style="font-size:11px;color:#aeb3bd;align-self:center">款号</span>'+out.map(function(r){
+        return '<button data-no="'+esc(r.no)+'" data-price="'+(hasPrice(r)?(r.price/100):'')+'" data-color="'+esc(r.color||'')+'" data-size="'+esc(r.size||'')+'">'+esc(r.no)+'</button>'
+      }).join(''):'';
+}
+$('#histNo').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  $('#fNo').value=b.dataset.no;
+  if(b.dataset.price)$('#fPrice').value=b.dataset.price;
+  if(b.dataset.color)$('#fColor').value=b.dataset.color;
+  if(b.dataset.size)$('#fSize').value=b.dataset.size;
+  calc();
+});
+$('#colorChips').innerHTML=COLORS.map(function(c){return '<button data-color="'+c+'">'+c+'</button>'}).join('');
+$('#sizeChips').innerHTML=SIZES.map(function(c){return '<button data-size="'+c+'">'+c+'</button>'}).join('');
+$('#colorChips').addEventListener('click',function(e){var b=e.target.closest('button');if(b)$('#fColor').value=b.dataset.color});
+$('#sizeChips').addEventListener('click',function(e){var b=e.target.closest('button');if(b)$('#fSize').value=b.dataset.size});
+
+function calc(){
+  var q=toNum($('#fQty').value),fp=$('#fPrice').value,p=toFen($('#fPrice').value),box=$('#calcBox');
+  if(!p){box.classList.add('none');$('#calcText').textContent=numNice(q)+' 件 × 未填单价 =';$('#calcAmt').textContent='待补'}
+  else{box.classList.remove('none');$('#calcText').textContent=numNice(q)+' 件 × ¥'+numNice(fp)+' =';$('#calcAmt').textContent='¥'+money(Math.round(q*p))}
+}
+['#fQty','#fPrice'].forEach(function(s){$(s).addEventListener('input',calc)});
+
+function saveForm(){
+  var no=$('#fNo').value.trim(), qty=toNum($('#fQty').value);
+  if(!no){toast('请填款号');$('#fNo').focus();return}
+  if(!qty){toast('请填件数');$('#fQty').focus();return}
+  var rec={id:editId||uid(),date:$('#fDate').value||todayStr(),no:no,
+    color:$('#fColor').value.trim(),size:$('#fSize').value.trim(),
+    qty:qty,price:toFen($('#fPrice').value),
+    settle:editId?(r&&r.settle?1:0):($('#fPrice').value?0:0),ts:Date.now()};
+  if(editId){
+    DB.records=DB.records.map(function(x){return x.id===editId?rec:x});
+    save();render();closeSheet();toast('已修改');return;
+  }
+  DB.records.push(rec);save();render();
+  toast(hasPrice(rec)?('已记录 ¥'+money(amountOf(rec))):'已记录，单价以后再补');
+  if($('#fKeep').checked){
+    $('#fQty').value='';$('#fColor').value='';$('#fSize').value='';calc();renderHist();
+    try{$('#fQty').focus()}catch(e){}
+  }else closeSheet();
+}
+
+/* 单条操作 */
+function closeAct(){$('#sheetAct').classList.remove('on');maskOn(false)}
+$('#actClose').addEventListener('click',closeAct);
+$('#actAdd').addEventListener('click',function(){
+  var r=DB.records.filter(function(x){return x.id===actId})[0],no=r?r.no:null;
+  closeAct();setTimeout(function(){openSheet(null,no)},180);
+});
+$('#actEdit').addEventListener('click',function(){var id=actId;closeAct();setTimeout(function(){openSheet(id)},180)});
+$('#actDel').addEventListener('click',function(){
+  var r=DB.records.filter(function(x){return x.id===actId})[0];if(!r)return;
+  if(!confirm('删除「'+r.no+' '+numNice(r.qty)+' 件」？删了找不回来。'))return;
+  DB.records=DB.records.filter(function(x){return x.id!==actId});
+  save();render();closeAct();toast('已删除');
+});
+
+/* mask、按钮 */
+function maskOn(on){$('#mask').classList.toggle('on',on)}
+$('#mask').addEventListener('click',function(){closeSheet();closeSet();closeAct();$('#viewer').hidden=true});
+$('#btnAdd').addEventListener('click',function(){openSheet(null)});
+$('#addClose').addEventListener('click',closeSheet);
+$('#addSave').addEventListener('click',saveForm);
+$('#btnDel').addEventListener('click',function(){
+  if(!editId)return;
+  if(!confirm('确定删除这条记录？'))return;
+  DB.records=DB.records.filter(function(x){return x.id!==editId});
+  save();render();closeSheet();toast('已删除');
+});
+
+/* 设置 */
+function closeSet(){$('#sheetSet').classList.remove('on');maskOn(false)}
+$('#btnSet').addEventListener('click',function(){maskOn(true);$('#sheetSet').classList.add('on')});
+$('#setClose').addEventListener('click',closeSet);
+function allRows(){return sorted()}
+function plainTable(){
+  return '日期\t款号\t颜色\t尺码\t件数\t单价\t金额\n'+allRows().map(function(r){
+    return [r.date,r.no,r.color,r.size,numNice(r.qty),
+      hasPrice(r)?numNice(r.price/100):'待补',
+      hasPrice(r)?(amountOf(r)/100).toFixed(2):'待补'].join('\t')}).join('\n');
+}
+function csv(){
+  return '日期,款号,颜色,尺码,件数,单价,金额\n'+allRows().map(function(r){
+    return [r.date,r.no,r.color,r.size,numNice(r.qty),
+      hasPrice(r)?numNice(r.price/100):'',
+      hasPrice(r)?(amountOf(r)/100).toFixed(2):''].join(',')}).join('\n');
+}
+function download(name,content,type){
+  var blob=new Blob(['\ufeff'+content],{type:type||'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},600);
+}
+$('#mExport').addEventListener('click',function(){
+  if(!DB.records.length){toast('还没有数据');return}
+  download('账本_'+todayStr()+'.csv',csv());toast('已导出 CSV');
+});
+$('#mCopy').addEventListener('click',function(){
+  if(!DB.records.length){toast('还没有数据');return}
+  var t=plainTable();
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){toast('已复制，可粘贴到微信')},function(){fb(t)});
+  }else fb(t);
+  function fb(text){
+    var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity=0;
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');toast('已复制')}catch(e){toast('复制失败，请长按选择')}
+    document.body.removeChild(ta);
+  }
+});
+$('#mBackup').addEventListener('click',function(){
+  if(!DB.records.length){toast('还没有数据');return}
+  download('账本备份_'+todayStr()+'.json',JSON.stringify({v:2,records:DB.records,photos:PHOTOS},null,2),'application/json');
+  toast('备份已导出');
+});
+function memoText(){
+  var list=allRows(), s=stat(list);
+  var d=new Date(), p2=function(n){return n<10?'0'+n:''+n};
+  var ts=d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+  var lines=['账本 · 生意流水账','备份时间：'+ts,'',
+    '——— 总览 ———','总件数：'+numNice(s.qty)+' 件','总金额：¥'+money(s.amount)];
+  var nos={};list.forEach(function(r){nos[r.no]=1});
+  lines.push('款号数：'+Object.keys(nos).length+' 个');
+  if(s.pending>0)lines.push('（含 '+s.pending+' 行待补单价，金额未计入）');
+  lines.push('','——— 明细（按款号分组）———');
+  var groups=[],map={};
+  list.forEach(function(r){var k=String(r.no||'未填款号');if(!map[k]){map[k]={no:k,rows:[]};groups.push(map[k])}map[k].rows.push(r)});
+  groups.forEach(function(g){
+    g.rows=sortByColor(g.rows);var st=stat(g.rows);
+    g.qty=st.qty;g.amount=st.amount;g.pending=st.pending;
+    g.colors=uniqCount(g.rows,'color');g.sizes=uniqCount(g.rows,'size');
+    g.date=g.rows.reduce(function(m,r){return (!m||r.date>m)?r.date:m},'');
+  });
+  groups.sort(function(a,b){return b.amount-a.amount||b.qty-a.qty});
+  groups.forEach(function(g){
+    lines.push('');
+    lines.push('【'+g.no+'】 '+g.date.slice(5)+' · '+g.colors+'色'+g.sizes+'码 · '+numNice(g.qty)+'件 · ¥'+money(g.amount)
+      +(g.pending?('（含'+g.pending+'行待补）'):''));
+    g.rows.forEach(function(r){
+      var cs=[r.color,r.size].filter(Boolean).join(' / ')||'—';
+      var amt=hasPrice(r)?('¥'+money(amountOf(r))):'待补';
+      lines.push('  '+cs+'  '+numNice(r.qty)+'件  '+amt+(r.settle?'  ✓已结':''));
+    });
+  });
+  return lines.join('\n');
+}
+function copyText(text,done){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){done&&done(true)},function(){fb(text)});
+  }else fb(text);
+  function fb(t){
+    var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity=0;
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done&&done(true)}catch(e){done&&done(false)}
+    document.body.removeChild(ta);
+  }
+}
+$('#mMemo').addEventListener('click',function(){
+  if(!DB.records.length){toast('还没有数据');return}
+  var t=memoText();
+  if(navigator.share){
+    navigator.share({title:'账本备份',text:t})
+      .then(function(){toast('已调起分享，选「备忘录」添加')},function(){});
+    return;
+  }
+  copyText(t,function(ok){toast(ok?'已复制到剪贴板，去备忘录粘贴':'复制失败，请长按选择')});
+});
+$('#mImport').addEventListener('click',function(){$('#fileInput').click()});
+$('#fileInput').addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f)return;
+  var fr=new FileReader();
+  fr.onload=function(){
+    try{
+      var o=JSON.parse(fr.result);
+      if(!o||!Array.isArray(o.records))throw 0;
+      if(DB.records.length&&!confirm('当前有 '+DB.records.length+' 条记录，恢复备份会覆盖，确定吗？'))return;
+      DB={records:o.records};
+      if(o.photos&&typeof o.photos==='object')PHOTOS=o.photos;
+      save();savePhotos();render();closeSet();toast('已恢复 '+DB.records.length+' 条记录');
+    }catch(err){toast('文件格式不对，请选择本工具导出的备份')}
+    e.target.value='';
+  };
+  fr.readAsText(f);
+});
+$('#mDemo').addEventListener('click',function(){
+  var d=todayStr();
+  DB.records.push(
+    {id:uid(),date:d,no:'A2356',color:'黑',size:'M',qty:12,price:4500,settle:1,ts:Date.now()},
+    {id:uid(),date:d,no:'B8801',color:'杏',size:'L',qty:8,price:6800,ts:Date.now()},
+    {id:uid(),date:d,no:'A2356',color:'藏青',size:'XL',qty:16,price:0,ts:Date.now()}
+  );
+  save();render();closeSet();toast('已载入 3 条示例（含 1 条待补）');
+});
+$('#mClear').addEventListener('click',function(){
+  if(!DB.records.length){toast('已经是空的');return}
+  if(!confirm('确定清空全部 '+DB.records.length+' 条记录？不可撤销，建议先导出备份。'))return;
+  DB.records=[];PHOTOS={};save();try{savePhotos()}catch(e){}
+  render();closeSet();toast('已清空');
+});
+
+render();
+})();
+</script>
+</body>
+</html>
