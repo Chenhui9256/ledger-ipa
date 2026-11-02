@@ -294,15 +294,14 @@ input{font-family:inherit}
 <div class="sheet" id="sheetSet">
   <div class="sheet-hd"><button id="setClose">关闭</button><span>设置与备份</span><span></span></div>
   <div class="menu">
-    <button id="mExport">导出 CSV 表格文件</button>
+    <button id="mExport">导出 CSV 表格文件（可发微信）</button>
     <button id="mCopy">复制表格文本（可粘到微信）</button>
-    <button id="mMemo">一键备份到备忘录</button>
-    <button id="mBackup">导出备份文件（JSON，含图片）</button>
-    <button id="mImport">从备份文件恢复</button>
+    <button id="mImport">一键还原（从备份文件恢复）</button>
+    <button id="mAutoRestore">从本机自动备份恢复（防误清）</button>
     <input type="file" id="fileInput" accept="application/json,.json" hidden>
     <button id="mDemo">载入 3 条示例数据</button>
     <button id="mClear" class="danger">清空所有数据</button>
-    <div class="tip">金额只统计已填单价的记录；没填单价的标「待补」，件数照算、金额不计入，补上单价会自动进账。<br><br>图片存在这台手机上，会占地方。建议每周导出一次备份，换手机时导出再导入即可。</div>
+    <div class="tip">已开启自动保护：每记一笔 / 改一笔 / 删一笔，都会在本机自动存一份快照（「从本机自动备份恢复」可救回）；备忘录每 7 天自动备一次（到期会在你记账时自动弹出分享，存一下即可，走 iCloud 不丢）。换手机时，用「一键还原」选之前导出的 JSON 文件导回。</div>
   </div>
 </div>
 
@@ -318,7 +317,7 @@ input{font-family:inherit}
 <script>
 (function(){
 'use strict';
-var KEY='wsa_ledger_v1', PKEY='wsa_ledger_v1_photos';
+var KEY='wsa_ledger_v1', PKEY='wsa_ledger_v1_photos', LAST_MEMO_KEY='wsa_ledger_v1_lastmemo', AUTO_KEY='wsa_ledger_v1_autobackup';
 var $=function(s){return document.querySelector(s)};
 var PHOTOS=loadPhotos();
 var DB=load();
@@ -659,9 +658,9 @@ function saveForm(){
     settle:editId?(r&&r.settle?1:0):($('#fPrice').value?0:0),ts:Date.now()};
   if(editId){
     DB.records=DB.records.map(function(x){return x.id===editId?rec:x});
-    save();render();closeSheet();toast('已修改');return;
+    save();render();autoBackup();closeSheet();toast('已修改');return;
   }
-  DB.records.push(rec);save();render();
+  DB.records.push(rec);save();render();autoBackup();
   toast(hasPrice(rec)?('已记录 ¥'+money(amountOf(rec))):'已记录，单价以后再补');
   if($('#fKeep').checked){
     $('#fQty').value='';$('#fColor').value='';$('#fSize').value='';calc();renderHist();
@@ -681,7 +680,7 @@ $('#actDel').addEventListener('click',function(){
   var r=DB.records.filter(function(x){return x.id===actId})[0];if(!r)return;
   if(!confirm('删除「'+r.no+' '+numNice(r.qty)+' 件」？删了找不回来。'))return;
   DB.records=DB.records.filter(function(x){return x.id!==actId});
-  save();render();closeAct();toast('已删除');
+  save();render();autoBackup();closeAct();toast('已删除');
 });
 
 /* mask、按钮 */
@@ -694,7 +693,7 @@ $('#btnDel').addEventListener('click',function(){
   if(!editId)return;
   if(!confirm('确定删除这条记录？'))return;
   DB.records=DB.records.filter(function(x){return x.id!==editId});
-  save();render();closeSheet();toast('已删除');
+  save();render();autoBackup();closeSheet();toast('已删除');
 });
 
 /* 设置 */
@@ -737,10 +736,27 @@ $('#mCopy').addEventListener('click',function(){
     document.body.removeChild(ta);
   }
 });
-$('#mBackup').addEventListener('click',function(){
-  if(!DB.records.length){toast('还没有数据');return}
-  download('账本备份_'+todayStr()+'.json',JSON.stringify({v:2,records:DB.records,photos:PHOTOS},null,2),'application/json');
-  toast('备份已导出');
+/* 本机自动备份快照：每记/改/删一笔静默存一份，防误清/损坏 + 备忘录7天自动备 */
+function autoBackup(){
+  try{localStorage.setItem(AUTO_KEY,JSON.stringify({ts:Date.now(),records:DB.records,photos:PHOTOS}))}catch(e){}
+  var last=0;try{last=parseInt(localStorage.getItem(LAST_MEMO_KEY)||'0',10)||0}catch(e){}
+  if(DB.records.length && (!last || Date.now()-last >= 7*864e5)){
+    var t=memoText();
+    if(navigator.share){
+      try{
+        navigator.share({title:'账本自动备份',text:t})
+          .then(function(){try{localStorage.setItem(LAST_MEMO_KEY,String(Date.now()))}catch(e){} toast('已自动备份到备忘录')},
+                function(){toast('距上次备忘录备份已超7天，建议点设置→一键备份')});
+      }catch(e){toast('距上次备忘录备份已超7天，建议点设置→一键备份')}
+    }else toast('距上次备忘录备份已超7天，建议点设置→一键备份');
+  }
+}
+$('#mAutoRestore').addEventListener('click',function(){
+  var s;try{s=JSON.parse(localStorage.getItem(AUTO_KEY))}catch(e){s=null}
+  if(!s||!Array.isArray(s.records)||!s.records.length){toast('没有本机自动备份');return}
+  if(DB.records.length && !confirm('当前有 '+DB.records.length+' 条，用本机自动备份覆盖？'))return;
+  DB={records:s.records};if(s.photos&&typeof s.photos==='object')PHOTOS=s.photos;
+  save();try{savePhotos()}catch(e){}render();closeSet();toast('已从本机自动备份恢复 '+DB.records.length+' 条');
 });
 function memoText(){
   var list=allRows(), s=stat(list);
@@ -784,16 +800,6 @@ function copyText(text,done){
     document.body.removeChild(ta);
   }
 }
-$('#mMemo').addEventListener('click',function(){
-  if(!DB.records.length){toast('还没有数据');return}
-  var t=memoText();
-  if(navigator.share){
-    navigator.share({title:'账本备份',text:t})
-      .then(function(){toast('已调起分享，选「备忘录」添加')},function(){});
-    return;
-  }
-  copyText(t,function(ok){toast(ok?'已复制到剪贴板，去备忘录粘贴':'复制失败，请长按选择')});
-});
 $('#mImport').addEventListener('click',function(){$('#fileInput').click()});
 $('#fileInput').addEventListener('change',function(e){
   var f=e.target.files[0];if(!f)return;
