@@ -257,6 +257,7 @@ input{font-family:inherit}
     <div class="f"><span>日期</span><input type="date" id="fDate"></div>
     <div class="f"><span>款号</span><input id="fNo" placeholder="如 A2356" autocomplete="off"></div>
     <div class="chips-wrap" id="histNo"></div>
+    <div class="f"><span>编号</span><input id="fBh" placeholder="如 一、二 或 1、2（可不填）" autocomplete="off"></div>
     <div class="f"><span>颜色</span><input id="fColor" placeholder="如 黑" autocomplete="off"></div>
     <div class="chips-wrap" id="colorChips"></div>
     <div class="f"><span>尺码</span><input id="fSize" placeholder="如 M" autocomplete="off"></div>
@@ -449,7 +450,7 @@ function render(){
     g.rows=sortByColor(g.rows);
     var st=stat(g.rows);
     g.qty=st.qty;g.amount=st.amount;g.pending=st.pending;
-    g.colors=uniqCount(g.rows,'color');g.sizes=uniqCount(g.rows,'size');
+    g.colors=uniqCount(g.rows,'color');g.sizes=uniqCount(g.rows,'size');g.bhs=uniqCount(g.rows,'bh');
     g.date=g.rows.reduce(function(m,r){return (!m||r.date>m)?r.date:m},'');
   });
   groups.sort(function(a,b){return b.amount-a.amount||b.qty-a.qty});
@@ -466,7 +467,7 @@ function render(){
             +'<i class="ct">▼</i>'
             +'<span class="gno" style="color:'+col+'">'+esc(g.no)+'</span>'
             +'<span class="g-line2">'
-              +'<i>'+g.colors+' 色</i><i>'+g.sizes+' 码</i><i>'+numNice(g.qty)+' 件</i>'
+              +'<i>'+g.colors+' 色</i><i>'+g.sizes+' 码</i>'+(g.bhs?('<i>'+g.bhs+' 编号</i>'):'')+'<i>'+numNice(g.qty)+' 件</i>'
               +(g.pending?'<i class="pend">'+g.pending+' 行待补</i>':'')
             +'</span>'
           +'</div>'
@@ -482,7 +483,8 @@ function render(){
       var c=String(r.color||'').trim();
       if(first||c!==lastC){lastC=c;ci++;first=false}
       var cs=[r.color,r.size].filter(Boolean).join(' / ')||'—';
-      var tag=(r.date!==g.date?'<em>'+esc(r.date.slice(5))+'</em>':'')
+      var tag=(r.bh?'<em>编号'+esc(r.bh)+'</em>':'')
+        +(r.date!==g.date?'<em>'+esc(r.date.slice(5))+'</em>':'')
         +(r.settle?'<i class="ok">✓已结</i>':'');
       html+='<div class="row'+(ci%2?' alt':'')+'" data-id="'+r.id+'">'
         +'<span class="cs">'+esc(cs)+tag+'</span>'
@@ -541,7 +543,7 @@ $('#list').addEventListener('click',function(e){
   if(row){
     var r=DB.records.filter(function(x){return x.id===row.dataset.id})[0];if(!r)return;
     actId=r.id;
-    $('#actTitle').textContent=esc(r.no)+'　'+(hasPrice(r)?('¥'+money(amountOf(r))):'待补单价');
+    $('#actTitle').textContent=esc(r.no)+(r.bh?(' 编号'+esc(r.bh)):'')+'　'+(hasPrice(r)?('¥'+money(amountOf(r))):'待补单价');
     maskOn(true);$('#sheetAct').classList.add('on');
   }
 });
@@ -608,6 +610,7 @@ function openSheet(id,preNo){
   $('#btnDel').style.display=id?'block':'none';
   $('#fDate').value=r?r.date:todayStr();
   $('#fNo').value=r?r.no:'';
+  $('#fBh').value=r?(r.bh||''):'';
   $('#fColor').value=r?(r.color||''):'';
   $('#fSize').value=r?(r.size||''):'';
   $('#fQty').value=(r&&r.qty)?String(r.qty):'';
@@ -650,7 +653,7 @@ function saveForm(){
   var no=$('#fNo').value.trim(), qty=toNum($('#fQty').value);
   if(!no){toast('请填款号');$('#fNo').focus();return}
   if(!qty){toast('请填件数');$('#fQty').focus();return}
-  var rec={id:editId||uid(),date:$('#fDate').value||todayStr(),no:no,
+  var rec={id:editId||uid(),date:$('#fDate').value||todayStr(),no:no,bh:$('#fBh').value.trim(),
     color:$('#fColor').value.trim(),size:$('#fSize').value.trim(),
     qty:qty,price:toFen($('#fPrice').value),
     settle:editId?(r&&r.settle?1:0):($('#fPrice').value?0:0),ts:Date.now()};
@@ -700,14 +703,14 @@ $('#btnSet').addEventListener('click',function(){maskOn(true);$('#sheetSet').cla
 $('#setClose').addEventListener('click',closeSet);
 function allRows(){return sorted()}
 function plainTable(){
-  return '日期\t款号\t颜色\t尺码\t件数\t单价\t金额\n'+allRows().map(function(r){
-    return [r.date,r.no,r.color,r.size,numNice(r.qty),
+  return '日期\t款号\t编号\t颜色\t尺码\t件数\t单价\t金额\n'+allRows().map(function(r){
+    return [r.date,r.no,r.bh||'',r.color,r.size,numNice(r.qty),
       hasPrice(r)?numNice(r.price/100):'待补',
       hasPrice(r)?(amountOf(r)/100).toFixed(2):'待补'].join('\t')}).join('\n');
 }
 function csv(){
-  return '日期,款号,颜色,尺码,件数,单价,金额\n'+allRows().map(function(r){
-    return [r.date,r.no,r.color,r.size,numNice(r.qty),
+  return '日期,款号,编号,颜色,尺码,件数,单价,金额\n'+allRows().map(function(r){
+    return [r.date,r.no,r.bh||'',r.color,r.size,numNice(r.qty),
       hasPrice(r)?numNice(r.price/100):'',
       hasPrice(r)?(amountOf(r)/100).toFixed(2):''].join(',')}).join('\n');
 }
@@ -754,7 +757,7 @@ function memoText(){
   groups.forEach(function(g){
     g.rows=sortByColor(g.rows);var st=stat(g.rows);
     g.qty=st.qty;g.amount=st.amount;g.pending=st.pending;
-    g.colors=uniqCount(g.rows,'color');g.sizes=uniqCount(g.rows,'size');
+    g.colors=uniqCount(g.rows,'color');g.sizes=uniqCount(g.rows,'size');g.bhs=uniqCount(g.rows,'bh');
     g.date=g.rows.reduce(function(m,r){return (!m||r.date>m)?r.date:m},'');
   });
   groups.sort(function(a,b){return b.amount-a.amount||b.qty-a.qty});
@@ -765,7 +768,7 @@ function memoText(){
     g.rows.forEach(function(r){
       var cs=[r.color,r.size].filter(Boolean).join(' / ')||'—';
       var amt=hasPrice(r)?('¥'+money(amountOf(r))):'待补';
-      lines.push('  '+cs+'  '+numNice(r.qty)+'件  '+amt+(r.settle?'  ✓已结':''));
+      lines.push('  '+cs+'  '+numNice(r.qty)+'件  '+amt+(r.bh?(' 编号'+r.bh):'')+(r.settle?'  ✓已结':''));
     });
   });
   return lines.join('\n');
