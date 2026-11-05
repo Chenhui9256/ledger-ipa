@@ -806,6 +806,7 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -arch arm64 \
+            -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -815,9 +816,14 @@ jobs:
           set -x
           echo "========== RELEASED FILES =========="
           ls -la web assets Info.plist entitlements.plist 2>&1 || true
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/LedgerApp.app" -type d -print -quit 2>/dev/null)
-          if [ -z "$APP" ]; then APP=$(find ~/Library/Developer/Xcode/DerivedData -name "LedgerApp.app" -type d -print -quit 2>/dev/null); fi
-          if [ -z "$APP" ]; then echo "APP NOT FOUND"; exit 1; fi
+          APP="build/Build/Products/Release-iphoneos/LedgerApp.app"
+          echo "APP=$APP"
+          if [ ! -f "$APP/LedgerApp" ]; then
+            echo "FATAL: main binary NOT FOUND at $APP/LedgerApp"
+            ls -laR build 2>&1 | head -80 || true
+            exit 1
+          fi
+          file "$APP/LedgerApp" 2>&1 || true
           echo "APP=$APP"
           cp -f web/index.html "$APP/index.html"
           mkdir -p "$APP/web"
@@ -826,6 +832,10 @@ jobs:
           cp -f assets/icon120.png "$APP/Icon@2x.png"
           cp -f assets/icon180.png "$APP/Icon@3x.png"
           cp -f Info.plist "$APP/Info.plist"
+          echo "========== MAIN BINARY CHECK =========="
+          test -f "$APP/LedgerApp" || { echo "FATAL: main binary missing before packaging"; ls -la "$APP"; exit 1; }
+          plutil -extract CFBundleExecutable raw "$APP/Info.plist" 2>&1 || true
+          file "$APP/LedgerApp" 2>&1 || true
           echo "========== BUNDLE ASSETS =========="
           ls -la "$APP/index.html" "$APP/web/index.html" "$APP/Icon.png" "$APP/Icon@2x.png" "$APP/Icon@3x.png" "$APP/Info.plist" 2>&1 || true
           echo "========== FINAL PLIST =========="
@@ -833,17 +843,27 @@ jobs:
           set +x
       - name: Ad-hoc self-sign (fakesign for TrollStore)
         run: |
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/LedgerApp.app" -type d -print -quit 2>/dev/null)
-          if [ -z "$APP" ]; then APP=$(find ~/Library/Developer/Xcode/DerivedData -name "LedgerApp.app" -type d -print -quit 2>/dev/null); fi
-          if [ -z "$APP" ]; then echo "APP NOT FOUND"; exit 1; fi
+          APP="build/Build/Products/Release-iphoneos/LedgerApp.app"
+          echo "APP=$APP"
+          if [ ! -f "$APP/LedgerApp" ]; then
+            echo "FATAL: main binary NOT FOUND at $APP/LedgerApp"
+            ls -laR build 2>&1 | head -80 || true
+            exit 1
+          fi
+          file "$APP/LedgerApp" 2>&1 || true
           codesign --force --deep --sign - --entitlements entitlements.plist --generate-entitlement-der "$APP"
           echo "签名完成"
           codesign -d --entitlements :- "$APP" 2>&1 | head -20 || true
       - name: Verify app and print diagnostics
         run: |
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/LedgerApp.app" -type d -print -quit 2>/dev/null)
-          if [ -z "$APP" ]; then APP=$(find ~/Library/Developer/Xcode/DerivedData -name "LedgerApp.app" -type d -print -quit 2>/dev/null); fi
-          if [ -z "$APP" ]; then echo "APP NOT FOUND"; exit 1; fi
+          APP="build/Build/Products/Release-iphoneos/LedgerApp.app"
+          echo "APP=$APP"
+          if [ ! -f "$APP/LedgerApp" ]; then
+            echo "FATAL: main binary NOT FOUND at $APP/LedgerApp"
+            ls -laR build 2>&1 | head -80 || true
+            exit 1
+          fi
+          file "$APP/LedgerApp" 2>&1 || true
           echo "========== APP PATH =========="
           echo "$APP"
           echo "========== Info.plist FINAL =========="
@@ -861,12 +881,24 @@ jobs:
           echo "========== DIAGNOSTICS END =========="
       - name: Package IPA
         run: |
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/LedgerApp.app" -type d -print -quit 2>/dev/null)
-          if [ -z "$APP" ]; then APP=$(find ~/Library/Developer/Xcode/DerivedData -name "LedgerApp.app" -type d -print -quit 2>/dev/null); fi
-          if [ -z "$APP" ]; then echo "APP NOT FOUND"; exit 1; fi
+          APP="build/Build/Products/Release-iphoneos/LedgerApp.app"
+          echo "APP=$APP"
+          if [ ! -f "$APP/LedgerApp" ]; then
+            echo "FATAL: main binary NOT FOUND at $APP/LedgerApp"
+            ls -laR build 2>&1 | head -80 || true
+            exit 1
+          fi
+          file "$APP/LedgerApp" 2>&1 || true
           rm -rf Payload LedgerApp-v2.ipa
           mkdir -p Payload
           cp -R "$APP" Payload/LedgerApp.app
+          echo "========== PAYLOAD MAIN BINARY CHECK =========="
+          if [ ! -f "Payload/LedgerApp.app/LedgerApp" ]; then
+            echo "FATAL: main binary missing in Payload - refusing to build IPA"
+            ls -la "Payload/LedgerApp.app"
+            exit 1
+          fi
+          file "Payload/LedgerApp.app/LedgerApp" 2>&1 || true
           zip -qry LedgerApp-v2.ipa Payload
           echo "========== IPA STRUCTURE =========="
           unzip -l LedgerApp-v2.ipa > /tmp/ipa_list.txt 2>&1 || true
