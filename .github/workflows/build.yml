@@ -106,8 +106,18 @@ jobs:
           cp -f assets/icon120.png "$APP/Icon@2x.png"
           cp -f assets/icon180.png "$APP/Icon@3x.png"
           cp -f Info.plist "$APP/Info.plist"
+          # 强制用 plutil 写入最终值，彻底消除 $(...) 未展开变量（Parse Error 303 根因）
+          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable KuyangApp" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.kuyangtong.paper" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName 纸样通" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 纸样通" "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 纸样通" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundlePackageType APPL" "$APP/Info.plist"
+          echo "========== 最终 Info.plist 校验（必须无 $(...) 变量）=========="
+          plutil -p "$APP/Info.plist"
+          EXE=$(plutil -extract CFBundleExecutable raw -o - "$APP/Info.plist")
+          echo "CFBundleExecutable=$EXE"
+          if [ "$EXE" != "KuyangApp" ]; then echo "FATAL: CFBundleExecutable 错误: $EXE"; exit 1; fi
           test -f "$APP/KuyangApp" || { echo "FATAL: main binary missing before packaging"; exit 1; }
-          plutil -extract CFBundleExecutable raw "$APP/Info.plist" 2>&1 || true
           ls -la "$APP/index.html" "$APP/web/index.html" "$APP/Icon.png" "$APP/Info.plist" 2>&1 || true
           set +x
 
